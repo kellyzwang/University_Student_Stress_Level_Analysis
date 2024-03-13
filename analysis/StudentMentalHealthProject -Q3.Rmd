@@ -1,0 +1,148 @@
+---
+title: "Mental Health Project"
+author: "Rohit Chandiramani"
+date: "2024-03-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r} 
+library(dplyr) 
+library(boot)
+library(coin)
+```
+```{r}
+df <- read.csv('./data/02_Student_Mental_Health_2021-10-10.csv') 
+columns_of_interest <- c('Age', 'Ethnicity', 'Sex', 'Gender', 'International', 'Disability', 'Year_credits', 'Year_calendar', 'Program', 'Part_time', 'Degree', 'Living', 'Employment', 'Volunteering', 'Plans', 'Hours_sleep', 'More_sleep', 'Hobbies_Time_1', 'Hobbies_Time_2', 'Hobbies_Time_3', 'Hobbies_Time_4', 'Hobbies_Time_5', 'Hobbies_Time_6', 'Hobbies_Time_7', 'Hobbies_Time_8', 'Strenous.exercise', 'Moderate.exercise', 'Mild.exercise', 'Anaerobic_Aerobic', 'Diagnosis', 'Pre_GAD_1', 'Pre_GAD_2', 'Pre_PHQ_1', 'Pre_PHQ_2', 'Pre_PSS_1', 'Pre_PSS_2', 'Pre_PSS_3', 'Pre_PSS_4', 'Pre_PSS_5', 'Pre_PSS_6', 'Pre_PSS_7', 'Pre_PSS_8', 'Pre_PSS_9', 'Pre_PSS_10', 'CAMS_1',
+'CAMS_2','CAMS_3','CAMS_4','CAMS_5','CAMS_6','CAMS_7','CAMS_8','CAMS_9','CAMS_10','CAMS_11','CAMS_12', 'Mindfulness_freq') 
+df <- df[,columns_of_interest] 
+pre_pss_columns <- c('Pre_PSS_1', 'Pre_PSS_2', 'Pre_PSS_3', 'Pre_PSS_4', 'Pre_PSS_5', 'Pre_PSS_6', 'Pre_PSS_7', 'Pre_PSS_8', 'Pre_PSS_9', 'Pre_PSS_10') 
+df$stress <- rowMeans(df[, pre_pss_columns], na.rm = TRUE) 
+df <- df[, !(names(df) %in% pre_pss_columns)] 
+pre_phq_columns <- c('Pre_PHQ_1', 'Pre_PHQ_2') 
+df$depression <- rowMeans(df[, pre_phq_columns], na.rm = TRUE) 
+df <- df[, !(names(df) %in% pre_phq_columns)] 
+pre_gad_columns <- c('Pre_GAD_1', 'Pre_GAD_2') 
+df$anxiety <- rowMeans(df[, pre_gad_columns], na.rm = TRUE) 
+df <- df[, !(names(df) %in% pre_gad_columns)] 
+pre_cams_columns <- c('CAMS_1','CAMS_2','CAMS_3','CAMS_4','CAMS_5','CAMS_6',
+                     'CAMS_7','CAMS_8','CAMS_9','CAMS_10','CAMS_11','CAMS_12') 
+df$mindfulness_level <- rowMeans(df[, pre_cams_columns], na.rm = TRUE) 
+df <- df[, !(names(df) %in% pre_cams_columns)] 
+df <- df[complete.cases(df), ] 
+mental_health <- df
+mental_health$Program <- as.factor(mental_health$Program)
+mental_health$Year_credits <- as.factor(mental_health$Year_credits)
+```
+
+```{r}
+#Correlation b/w stress. anxiety and depression
+cor(mental_health$stress, mental_health$anxiety)
+cor(mental_health$stress, mental_health$depression)
+cor(mental_health$anxiety, mental_health$depression)
+
+```
+
+
+```{r}
+#One-way ANOVA on full dataset, assuming all prereqs, wiz FALSE. Data is not normal
+model <-  aov(stress ~ Program, data = mental_health)
+summary(model)
+
+#Bootstrapped ANOVA
+anova_statistic <- function(data, indices) {
+  # Resample the data
+  resampled_data <- data[indices, ]
+
+  model <- aov(stress ~ Program, data = resampled_data)
+  f_statistic <- summary(model)[[1]]$F[1]
+  return(f_statistic)
+}
+
+
+num_resamples <- 1000
+boot_results <- boot(data = mental_health, statistic = anova_statistic, 
+                     R = num_resamples)
+ci <- boot.ci(boot_results, type = "norm")
+print(boot_results)
+print(ci)
+
+#Perm test with ANOVA
+mental_health$Program_factor <- mental_health$Program
+perm_test <- oneway_test(stress ~ Program_factor, data = mental_health)
+print(perm_test)
+```
+
+```{r}
+#Test for proportions of stressed students from two major programs Sciences, Social Sciences
+#Setting threshold of 3.0 and converting numerical stress variable to binary categorical
+a<-mental_health %>% filter(Program==7) %>% filter(stress>=mean(mental_health$stress))
+b<-mental_health %>% filter(Program==7)
+c<-mental_health %>% filter(Program==8) %>% filter(stress>=mean(mental_health$stress))
+d<-mental_health %>% filter(Program==8)
+prop.test(c(nrow(a),nrow(c)), c(nrow(b),nrow(d)))
+```
+
+
+```{r}
+#chisq test for Stress categorical and Program and Part_time status
+#convert stress to categorical
+mental_health$stress_cat <- ifelse(mental_health$stress > mean(mental_health$stress), 1, 0)
+chisq.test(table(as.factor(mental_health$stress_cat), as.factor(mental_health$Program)))
+
+chisq_test(table(as.factor(mental_health$stress_cat), as.factor(mental_health$Part_time)))
+chisq_test(table(as.factor(mental_health$stress_cat), as.factor(mental_health$Year_credits)))
+```
+
+```{r}
+#One-way ANOVA for Year_credits
+model_year_credits <-  aov(stress ~ Year_credits, data = mental_health)
+summary(model_year_credits)
+
+#Bootstrapped ANOVA
+anova_statistic <- function(data, indices) {
+  # Resample the data
+  resampled_data <- data[indices, ]
+
+  model_year_credits <- aov(stress ~ Year_credits, data = resampled_data)
+  f_statistic <- summary(model_year_credits)[[1]]$F[1]
+  return(f_statistic)
+}
+
+
+num_resamples <- 1000
+boot_results <- boot(data = mental_health, statistic = anova_statistic, 
+                     R = num_resamples)
+ci <- boot.ci(boot_results, type = "norm")
+print(boot_results)
+print(ci)
+```
+```{r}
+#One-way ANOVA with interaction Program*Year_credits, assuming all prereqs, wiz FALSE. Data is not normal
+model_program_yc <-  aov(stress ~ Program*Year_credits, data = mental_health)
+summary(model_program_yc)
+```
+
+```{r}
+summary(glm(stress_cat ~ Program + Year_credits, data = mental_health, family = binomial))
+logit_model <- glm(stress_cat ~ Program * Year_credits, data = mental_health, family = binomial)
+summary(logit_model)
+predicted_prob <- predict(logit_model , type = "response")
+
+plot(factor(mental_health$Program), predicted_prob, 
+      xlab = "Program of Study", 
+      ylab = "Predicted Probability", 
+      main = "Predicted Probabilities vs. Program of Study",
+      pch = 19, col = "lightblue")
+abline(lm(predicted_prob ~ as.factor(mental_health$Program)))
+
+plot(factor(mental_health$Year_credits), predicted_prob, 
+      xlab = "Year credits", 
+      ylab = "Predicted Probability", 
+      main = "Predicted Probabilities vs. Academic Year",
+      pch = 19, col = "lightgreen")
+abline(lm(predicted_prob ~ as.factor(mental_health$Year_credits)))
+```
+
