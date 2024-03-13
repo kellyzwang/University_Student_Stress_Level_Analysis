@@ -1,0 +1,380 @@
+---
+title: "stats_proj"
+output: html_document
+date: "2024-03-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+ls()
+rm(list = ls())
+getwd()
+```
+## Importing Packages 
+```{R}
+library(ggplot2)
+library(reshape2)
+```
+## Importing Data
+```{r}
+data = read.csv("cleaned.csv")
+head(data)
+```
+```{R}
+data$mean_stress <- rowMeans(data[, c("Pre_PSS_1", "Pre_PSS_2","Pre_PSS_3", "Pre_PSS_4", "Pre_PSS_5","Pre_PSS_6",
+                                      "Pre_PSS_7", "Pre_PSS_8", "Pre_PSS_9", "Pre_PSS_10")])
+data$mean_hobbies_time <- rowMeans(data[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4",
+                                            "Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")])
+data$mean_hobbies_score <- rowMeans(data[, c("Hobbies_Imp_1", "Hobbies_Imp_2", "Hobbies_Imp_3", "Hobbies_Imp_4",
+                                             "Hobbies_Imp_5", "Hobbies_Imp_6", "Hobbies_Imp_7", "Hobbies_Imp_8")])
+
+data$total_hobbies_score <- rowSums(data[, c("Hobbies_Imp_1", "Hobbies_Imp_2", "Hobbies_Imp_3", "Hobbies_Imp_4",
+                                             "Hobbies_Imp_5", "Hobbies_Imp_6", "Hobbies_Imp_7", "Hobbies_Imp_8")])
+data$total_hobbies_time <- rowSums(data[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4",
+                                            "Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")])
+
+#Adding more columns to split between Recreational and academic hobbies.
+data$mean_recreational_hobbies_time <- rowMeans(data[, c("Hobbies_Time_1", "Hobbies_Time_2","Hobbies_Time_3", "Hobbies_Time_4")])
+data$mean_recreational_hobbies_score <- rowMeans(data[, c("Hobbies_Imp_1", "Hobbies_Imp_2", "Hobbies_Imp_3", "Hobbies_Imp_4")])
+data$total_recreational_hobbies_score <- rowSums(data[, c("Hobbies_Imp_1", "Hobbies_Imp_2", "Hobbies_Imp_3","Hobbies_Imp_4")])
+data$total_recreational_hobbies_time <- rowSums(data[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4")])
+
+data$mean_academic_hobbies_time <- rowMeans(data[, c("Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")])
+data$mean_academic_hobbies_score <- rowMeans(data[, c("Hobbies_Imp_5", "Hobbies_Imp_6", "Hobbies_Imp_7", "Hobbies_Imp_8")])
+data$total_academic_hobbies_score <- rowSums(data[, c("Hobbies_Imp_5", "Hobbies_Imp_6", "Hobbies_Imp_7", "Hobbies_Imp_8")])
+data$total_academic_hobbies_time <- rowSums(data[, c("Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")])
+
+head(data)
+```
+## data presentation 
+```{r}
+subset_display <- subset(data, select = c(Hobbies_Time_1, Hobbies_Time_2, Hobbies_Time_3, Hobbies_Time_4,Hobbies_Time_5, Hobbies_Time_6, Hobbies_Time_7, Hobbies_Time_8, total_hobbies_time, total_recreational_hobbies_time, total_academic_hobbies_time,mean_stress))
+
+head(subset_display)
+summary(subset_display)
+
+num_rows <- nrow(subset(data, mean_stress > 3.2))
+print(num_rows)
+not_rows <- nrow(subset(data, mean_stress <= 3.2))
+print(not_rows)
+
+stressed_data = subset(data, mean_stress > 3.2)
+non_stressed_data = subset(data, mean_stress <= 3.2)
+
+mean_hobby_stressed <- mean(stressed_data$total_academic_hobbies_time)
+print(mean_hobby_stressed)
+mean_hobby_non_stressed <- mean(non_stressed_data$total_academic_hobbies_time)
+print(mean_hobby_non_stressed)
+
+```
+
+## Analysing the relationship between hobbies time and Mean stress score
+
+```{R}
+summary(data)
+
+ggplot(data, aes(x = total_hobbies_time, y = mean_stress)) +
+  geom_point() +             # Add points
+  geom_smooth(method = "lm") +  # Add a linear regression line
+  labs(x = "Hours Spent on Hobbies", y = "Stress Score", title = "Relationship between Hours Spent on Hobbies and Stress Score") +
+  theme_minimal()            # Minimalistic theme
+
+ggplot(data, aes(x = total_recreational_hobbies_time, y = mean_stress)) +
+  geom_point() +             # Add points
+  geom_smooth(method = "lm") +  # Add a linear regression line
+  labs(x = "Hours Spent on Hobbies", y = "Stress Score", title = "Relationship between Hours Spent on Rec Hobbies and Stress Score") +
+  theme_minimal()            # Minimalistic theme
+
+ggplot(data, aes(x = total_academic_hobbies_time, y = mean_stress)) +
+  geom_point() +             # Add points
+  geom_smooth(method = "lm") +  # Add a linear regression line
+  labs(x = "Hours Spent on Hobbies", y = "Stress Score", title = "Relationship between Hours Spent on Acad Hobbies and Stress Score") +
+  theme_minimal()            # Minimalistic theme
+
+correlation_matrix <- cor(data[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4",
+                                   "Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8",
+                                   "mean_stress")])
+# Print correlation matrix
+print(correlation_matrix)
+
+# Visualize correlation matrix using a heatmap
+
+
+# Convert correlation matrix to long format
+correlation_long <- melt(correlation_matrix)
+
+# Plot heatmap
+ggplot(correlation_long, aes(Var1, Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                       midpoint = 0, limit = c(-1,1), space = "Lab",
+                       name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 10, hjust = 1)) +
+  coord_fixed()
+```
+
+
+## Including Plots
+
+```{r}
+ggplot(data, aes(x = total_recreational_hobbies_time, fill = "Recreational")) +
+  geom_histogram(binwidth = 1, alpha = 0.5) +
+  labs(x = "Time Spent on Recreational Hobbies", y = "Frequency", fill = NULL) +
+  ggtitle("Histogram of Time Spent on Recreational Hobbies")
+
+# Plot histogram for academic hobby time
+ggplot(data, aes(x = total_academic_hobbies_time, fill = "Academic")) +
+  geom_histogram(binwidth = 1, alpha = 0.5) +
+  labs(x = "Time Spent on Academic Hobbies", y = "Frequency", fill = NULL) +
+  ggtitle("Histogram of Time Spent on Academic Hobbies")
+```
+
+## Performing a t-test to check if there's a difference in the average total time spent on hobbies by students who are considered to be stressed and not stressed. 
+### Here the students are considered to be stressed with stress_score is more than the average. when stress score more than 3.2
+
+### Null hypothesis : There is no difference between the mean total time spent on hobbies between stressed and not stressed students.
+
+### Alternate Hypothesis: There is a significance difference between the mean total time spent on hobbies between the stressed and the non stressed group. 
+
+```{r}
+stressed <- data[data$mean_stress > 3.2, "total_hobbies_time"]
+not_stressed <- data[data$mean_stress <= 3.2, "total_hobbies_time"]
+
+# Perform independent samples t-test
+t_test_result <- t.test(stressed, not_stressed)
+
+# Print the result
+print(t_test_result)
+```
+## With a p-value of 0.5948, we fail to reject the null hypothesis at the conventional significance level (e.g., α = 0.05). This suggests that there is insufficient evidence to conclude that the mean total time spent on hobbies differs significantly between stressed (with stress scores more than 3.2) and not stressed students.
+
+## The t-value of 0.53198 indicates that the difference between the means of the two groups is small relative to the variability of the data. This further supports the conclusion that there is no significant difference in mean times between the two groups.
+
+## In summary, based on these results, there is no evidence to suggest that the total time spent on hobbies differs significantly between stressed and not stressed students.
+
+#The next experiment is to perform a test if the hobby type and the time spent has an impact on stress
+### Null hypothesis : There is no difference between the mean total time spent on academic hobbies between stressed and not stressed students.
+
+### Alternate Hypothesis: There is a significance difference between the mean total time spent on academic hobbies between the stressed and the non stressed group.
+
+## Plotting the time spent on academic and recreational hobbies 
+```{r}
+subset_data <- subset(data, mean_stress > 3.2)
+hobby_data <- subset_data[, c("total_recreational_hobbies_time", "total_academic_hobbies_time")]
+
+# Creating a box plot
+boxplot(hobby_data,
+        main = "Comparison of Time Spent on Hobbies among not stressed students",
+        xlab = "Hobby",
+        ylab = "Time Spent (hours)",
+        col = c("lightblue", "lightgreen"),
+        border = "black",
+        notch = TRUE
+)
+legend("topright", legend = c("Recreational", "Academic"), fill = c("lightblue", "lightgreen"))
+```
+```{r}
+subset_data <- subset(data, mean_stress > 3.2)
+hobby_data <- subset_data[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4",
+                                            "Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")]
+
+# Creating a box plot
+boxplot(hobby_data,
+        main = "Comparison of time Spent on hobbies among not stressed students",
+        xlab = "Hobby",
+        ylab = "Time Spent (hours)",
+        border = "black",
+        notch = FALSE,
+        names = c("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8")
+)
+#legend("topright")
+
+
+
+subset_data2 <- subset(data, mean_stress <= 3.2)
+hobby_data2 <- subset_data2[, c("Hobbies_Time_1", "Hobbies_Time_2", "Hobbies_Time_3", "Hobbies_Time_4",
+                                            "Hobbies_Time_5", "Hobbies_Time_6", "Hobbies_Time_7", "Hobbies_Time_8")]
+
+# Creating a box plot
+boxplot(hobby_data2,
+        main = "Comparison of time Spent on hobbies among stressed students",
+        xlab = "Hobby",
+        ylab = "Time Spent (hours)",
+        border = "black",
+        notch = FALSE,
+        names = c("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8")
+)
+```
+
+```{r}
+stressed_ac <- data[data$mean_stress > 3.2, "total_academic_hobbies_time"]
+not_stressed_ac <- data[data$mean_stress <= 3.2, "total_academic_hobbies_time"]
+
+# Perform independent samples t-test
+t_test_result_ac <- t.test(stressed_ac, not_stressed_ac)
+
+# Print the result
+print(t_test_result_ac)
+```
+
+```{r}
+stressed_rc <- data[data$mean_stress > 3.2, "total_recreational_hobbies_time"]
+not_stressed_rc <- data[data$mean_stress <= 3.2, "total_recreational_hobbies_time"]
+
+# Perform independent samples t-test
+t_test_result_rc <- t.test(stressed_rc, not_stressed_rc)
+
+# Print the result
+print(t_test_result_rc)
+```
+## Now taking a closer look on individual hobbies. Below are the 8 questions pertaining to the hobbies columns and how much time is spent on these activities
+## 1. How important is participating in athletics, such as varsity sports or intramurals, to you?
+## 2. How important is partying or going out to bars and clubs to you?
+## 3. How important is playing games, such as video games or board games, with friends to you?
+## 4. How important is watching online recreational content such as on Netflix or Youtube to you?
+## 5. How important is participating in academic organizations and research to you?
+## 6. How important is studying to you?
+## 7. How important is attending office hours to you?
+## 8. How important is utilizing educational resources, such as the library and online tools, to you?
+
+## Out of these, I want to analyse qs 2,3,and 6
+## Below I am going to carry out the same t test for time spent on these hobbies individually
+
+```{r}
+stressed_1 <- data[data$mean_stress > 3.2, "Hobbies_Time_1"]
+not_stressed_1 <- data[data$mean_stress <= 3.2, "Hobbies_Time_1"]
+
+# Perform independent samples t-test
+t_test_result_1 <- t.test(stressed_1, not_stressed_1)
+
+# Print the result
+print(t_test_result_1)
+
+stressed_2 <- data[data$mean_stress > 3.2, "Hobbies_Time_2"]
+not_stressed_2 <- data[data$mean_stress <= 3.2, "Hobbies_Time_2"]
+
+# Perform independent samples t-test
+t_test_result_2 <- t.test(stressed_2, not_stressed_2)
+
+# Print the result
+print(t_test_result_2)
+
+```
+
+```{r}
+stressed_3 <- data[data$mean_stress > 3.2, "Hobbies_Time_3"]
+not_stressed_3 <- data[data$mean_stress <= 3.2, "Hobbies_Time_3"]
+
+# Perform independent samples t-test
+t_test_result_3 <- t.test(stressed_3, not_stressed_3)
+
+# Print the result
+print(t_test_result_3)
+
+stressed_4 <- data[data$mean_stress > 3.2, "Hobbies_Time_4"]
+not_stressed_4 <- data[data$mean_stress <= 3.2, "Hobbies_Time_4"]
+
+# Perform independent samples t-test
+t_test_result_4 <- t.test(stressed_4, not_stressed_4)
+
+# Print the result
+print(t_test_result_4)
+
+```
+
+```{r}
+stressed_5 <- data[data$mean_stress > 3.2, "Hobbies_Time_5"]
+not_stressed_5 <- data[data$mean_stress <= 3.2, "Hobbies_Time_5"]
+
+# Perform independent samples t-test
+t_test_result_5 <- t.test(stressed_5, not_stressed_5)
+
+# Print the result
+print(t_test_result_5)
+
+stressed_6 <- data[data$mean_stress > 3.2, "Hobbies_Time_6"]
+not_stressed_6 <- data[data$mean_stress <= 3.2, "Hobbies_Time_6"]
+
+# Perform independent samples t-test
+t_test_result_6 <- t.test(stressed_6, not_stressed_6)
+
+# Print the result
+print(t_test_result_6)
+
+stressed_7 <- data[data$mean_stress > 3.2, "Hobbies_Time_7"]
+not_stressed_7 <- data[data$mean_stress <= 3.2, "Hobbies_Time_7"]
+
+# Perform independent samples t-test
+t_test_result_7 <- t.test(stressed_7, not_stressed_7)
+
+# Print the result
+print(t_test_result_7)
+
+stressed_8 <- data[data$mean_stress > 3.2, "Hobbies_Time_8"]
+not_stressed_8 <- data[data$mean_stress <= 3.2, "Hobbies_Time_8"]
+
+# Perform independent samples t-test
+t_test_result_8 <- t.test(stressed_8, not_stressed_8)
+
+# Print the result
+print(t_test_result_8)
+
+
+
+```
+# Effect size calculation 
+```{r}
+mean_x <- 2.149635
+mean_y <- 2.333851
+n_x <- 548  # approximate sample size of stressed_3
+n_y <- 644  # approximate sample size of not_stressed_3
+sd_x <- sd(stressed_data$Hobbies_Time_3) # standard deviation of stressed_3 (if available)
+sd_y <- sd (stressed_data$Hobbies_Time_3) # standard deviation of not_stressed_3 (if available)
+
+# Calculate the pooled standard deviation
+sp <- sqrt(((n_x - 1) * sd_x^2 + (n_y - 1) * sd_y^2) / (n_x + n_y - 2))
+
+# Calculate Cohen's d
+d <- (mean_x - mean_y) / sp
+
+# Print Cohen's d
+print(d)
+
+```
+
+## Finally, A linear regression to check to see the weight of each hobby and weather they have an impact on stress as the response variable. 
+
+```{r}
+model <- lm(mean_stress ~ Hobbies_Time_1 + Hobbies_Time_2 + Hobbies_Time_3 + Hobbies_Time_4 + Hobbies_Time_5 + Hobbies_Time_6 + Hobbies_Time_7 + Hobbies_Time_8, data = data)
+
+# Print the summary of the model
+summary(model)
+```
+## Interpretation for Linear regression 
+##    Coefficients: The coefficients represent the estimated effect of each predictor variable (total time spent on each hobby) on the stress score.
+
+##    Intercept: The intercept represents the estimated stress score when all predictor variables are zero (i.e., when no time is spent on any hobby). In this case, the estimated intercept is 3.089.
+
+##    Estimates: The estimates for each predictor variable represent the estimated change in the stress score associated with a one-unit increase in the total time spent on that particular hobby, holding all other variables constant.
+
+##    Significance: The p-values associated with each coefficient indicate whether the estimated effects are statistically significant. In this case, "Signif. codes" are provided, where *** indicates p < 0.001, ** indicates p < 0.01, * indicates p < 0.05, and . indicates p < 0.1. For example, Hobbies_Time_3 and Hobbies_Time_4 are statistically significant at the 0.01 level, while Hobbies_Time_2 is significant at the 0.05 level.
+
+##    R-squared: The multiple R-squared value (0.01878) represents the proportion of variance in the stress score that is explained by the predictor variables. Adjusted R-squared takes into account the number of predictor variables and is typically lower than the multiple R-squared. In this case, the adjusted R-squared is 0.01214, indicating that the model explains only a small proportion of the variance in the stress score.
+
+##    Residuals: The residuals represent the differences between the observed stress scores and the predicted stress scores from the model. The residual standard error (0.4153) is an estimate of the standard deviation of the residuals.
+
+##    F-statistic: The F-statistic tests the overall significance of the regression model. In this case, the F-statistic is 2.83 with a p-value of 0.004098, indicating that the model is statistically significant at the 0.05 level. However, the low R-squared values suggest that the model may not be a good fit for the data.
+
+
+## Overall, the interpretation of the results suggests that some of the predictor variables (total time spent on hobbies) have statistically significant effects on the stress score, while others do not. However, the overall explanatory power of the model is limited, as indicated by the low R-squared values.
