@@ -1,0 +1,88 @@
+---
+title: "code"
+author: "Kelly Wang"
+date: "2024-03-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+
+df <- read.csv('../data/02_Student_Mental_Health_2021-10-10.csv')
+
+columns_of_interest <- c('Age', 'Ethnicity', 'Sex', 'Gender', 'International', 'Disability', 'Year_credits', 'Year_calendar', 'Program', 'Part_time', 'Degree', 'Living', 'Employment', 'Volunteering', 'Plans', 'Hours_sleep', 'More_sleep', 'Hobbies_Time_1', 'Hobbies_Time_2', 'Hobbies_Time_3', 'Hobbies_Time_4', 'Hobbies_Time_5', 'Hobbies_Time_6', 'Hobbies_Time_7', 'Hobbies_Time_8', 'Strenous.exercise', 'Moderate.exercise', 'Mild.exercise', 'Anaerobic_Aerobic', 'Diagnosis', 'Pre_GAD_1', 'Pre_GAD_2', 'Pre_PHQ_1', 'Pre_PHQ_2', 'Pre_PSS_1', 'Pre_PSS_2', 'Pre_PSS_3', 'Pre_PSS_4', 'Pre_PSS_5', 'Pre_PSS_6', 'Pre_PSS_7', 'Pre_PSS_8', 'Pre_PSS_9', 'Pre_PSS_10', 'Catch_question')
+
+df <- df[,columns_of_interest]
+
+pre_pss_columns <- c('Pre_PSS_1', 'Pre_PSS_2', 'Pre_PSS_3', 'Pre_PSS_4', 'Pre_PSS_5',
+                     'Pre_PSS_6', 'Pre_PSS_7', 'Pre_PSS_8', 'Pre_PSS_9', 'Pre_PSS_10')
+df$stress <- rowMeans(df[, pre_pss_columns], na.rm = TRUE)
+
+df <- df[, !(names(df) %in% pre_pss_columns)]
+
+pre_phq_columns <- c('Pre_PHQ_1', 'Pre_PHQ_2')
+df$depression <- rowMeans(df[, pre_phq_columns], na.rm = TRUE)
+
+df <- df[, !(names(df) %in% pre_phq_columns)]
+
+pre_gad_columns <- c('Pre_GAD_1', 'Pre_GAD_2')
+df$anxiety <- rowMeans(df[, pre_gad_columns], na.rm = TRUE)
+
+df <- df[, !(names(df) %in% pre_gad_columns)]
+
+df <- df[complete.cases(df), ]
+
+mental_health <- df
+
+
+
+# Ethnicity, 1 = Caucasian, 2 = Asian, 3 = Indigenous, 4 = Hispanic or Latino, 5 = Black, 6 = Other, 7 = Metis
+ethnicity_labels <- c("Caucasian", "Asian", "Indigenous", "Hispanic or Latino", "Black", "Other", "Metis")
+mental_health$EthnicityText <- ethnicity_labels[mental_health$Ethnicity]
+table(mental_health$EthnicityText)
+
+
+
+library(ggplot2) 
+library(dplyr)
+# exclude Indigenous and Metis groups since they have a really small sample size
+mental_health_dropped_groups <- mental_health %>%
+  filter(EthnicityText %in% c("Caucasian", "Asian", "Other",  "Hispanic or Latino", "Black"))
+
+ggplot(mental_health_dropped_groups, aes(x = EthnicityText, y = stress)) +
+  geom_boxplot() +
+  labs(x = "Ethnicity", y = "Stress Levels")
+
+
+
+# normality
+ggplot(mental_health_dropped_groups, aes(x = stress, fill = EthnicityText)) +
+  geom_histogram(binwidth = 0.1, position = "dodge") +
+  labs(title = "Histogram of Stress Levels by Ethnicity Groups",
+       x = "Stress Levels", y = "Frequency",
+       fill = "Ethnicity") 
+
+anova_results <- aov(stress ~ EthnicityText, data = mental_health_dropped_groups)
+summary(anova_results)
+
+data_asian_caucasian <-  mental_health_dropped_groups %>%
+  filter(EthnicityText %in% c("Caucasian", "Asian"))
+boxplot(data_asian_caucasian$stress ~ data_asian_caucasian$EthnicityText, main = "Side-by-Side Boxplots of Stress Level for Asian and Caucasian", xlab = "Ethnicity", ylab = "Stress", )
+
+asian <- mental_health_dropped_groups %>% filter(EthnicityText %in% c("Asian"))
+caucasian <- mental_health_dropped_groups %>% filter(EthnicityText %in% c("Caucasian"))
+
+mean(asian$stress)
+sd(asian$stress)
+mean(caucasian$stress)
+sd(caucasian$stress)
+
+t.test(asian$stress, caucasian$stress)
+```
+
+
+
