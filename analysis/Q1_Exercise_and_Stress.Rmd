@@ -1,0 +1,117 @@
+---
+title: "Student Stress and Exercise Analysis"
+author: "April Gao"
+date: "2024-02-29"
+output: word_document
+---
+
+Data Setup
+```{r}
+cleaned_data<-read.csv("cleaned_data.csv")
+
+exercise_data <- subset(cleaned_data, select = c(Strenous.exercise, Moderate.exercise,
+                                                 Mild.exercise, Anaerobic_Aerobic, stress))
+```
+
+Data Preparation
+```{r}
+# Handle missing values
+print(colSums(is.na(exercise_data)))
+exercise_data <- na.omit(exercise_data)
+
+# Convert Anaerobic_Aerobic to factor
+exercise_data$Anaerobic_Aerobic <- factor(exercise_data$Anaerobic_Aerobic)
+```
+Explore exercise distribution
+```{r}
+par(mfrow = c(1, 3))
+hist(exercise_data$Strenous.exercise)
+hist(exercise_data$Moderate.exercise)
+hist(exercise_data$Mild.exercise)
+```
+```{r}
+library(dplyr)
+# Remove response > 10 
+filtered_data <- exercise_data %>%
+  filter(Strenous.exercise <= 10 , Moderate.exercise <= 10, Mild.exercise <= 10)
+```
+
+Part 1: Exercise Frequency and Intensity 
+
+Correlation Analysis
+```{r}
+correlation_matrix <- cor(filtered_data[c("Strenous.exercise", "Moderate.exercise", "Mild.exercise", "stress")])
+print(correlation_matrix)
+```
+```{r}
+filtered_data$total_exercise <- filtered_data$Strenous.exercise+filtered_data$Moderate.exercise+filtered_data$Mild.exercise
+
+correlation_2 <- cor(filtered_data[c("total_exercise", "stress")])
+print(correlation_2)
+```
+
+```{r}
+library(ggplot2)
+#create binary variable exercise to indicate if student exercises
+filtered_data$exercise <- ifelse(filtered_data$total_exercise > 0, 1, 0)
+filtered_data$exercise <- factor(filtered_data$exercise)
+
+ggplot(filtered_data, aes(x = exercise, y = stress)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(x = "Exercise", y = "Stress Level") +
+  ggtitle("Distribution of Stress Levels for Exercise vs no Exercise")
+```
+
+```{r}
+anova1 <- aov(stress ~ exercise, data = filtered_data)
+summary(anova1)
+#p-value = 0.685, fail to reject there is no difference in numeric stress levels between students who exercise and those who do not
+```
+
+```{r}
+#Create binary stress indicator for above and below average stress level
+filtered_data$stress_binary <- ifelse(filtered_data$stress >= 3.2, 1, 0)
+
+mod1 <- glm(stress_binary ~ Strenous.exercise+Moderate.exercise+Mild.exercise,  data = filtered_data, family = "binomial")
+
+summary(mod1)
+
+exp(mod1$coefficients[2])
+
+#11%(1-89%) decrease in the odds of experiencing stress levels above average for each one-unit increase in Strenous.exercise.
+```
+
+
+Part 2: Anaerobic VS Aerobic Exercise 
+
+
+```{r}
+#exploratory analysis on exercise type and stress level
+ggplot(filtered_data, aes(x = Anaerobic_Aerobic, y = stress)) +
+  geom_boxplot(fill = "skyblue") +
+  labs(x = "Type of Exercise", y = "Stress Level") +
+  ggtitle("Distribution of Stress Levels for Anaerobic vs Aerobic Exercise")
+```
+
+```{r}
+anova_result2 <- aov(stress ~ Anaerobic_Aerobic, data = filtered_data)
+
+summary(anova_result2)
+
+#p-value= 0.297, Fail to reject anaerobic and aerobic has no impact on numeric stress level
+```
+
+
+```{r}
+contingency_table <- table(filtered_data$stress_binary, filtered_data$Anaerobic_Aerobic)
+
+chi_square_result <- chisq.test(contingency_table)
+
+chi_square_result
+#p-value= 0.1178, Fail to reject anaerobic and aerobic has no impact on if stress is above average
+```
+
+
+
+
+
