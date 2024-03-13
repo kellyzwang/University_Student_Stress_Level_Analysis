@@ -1,0 +1,257 @@
+---
+title: "University Student Mental Health Analysis"
+author: "Xinyi Lyu"
+date: "2024-02-03"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(corrplot)
+library(ggplot2)
+library(gridExtra)
+library(sandwich)
+library(lmtest)
+```
+
+# Impact of Sleeping Time and Quality on Students Stress Levels
+
+## Data
+
+The parameters explored in this analysis are listed in detail as follows.
+
+stress_level: sum of Pre-PSS scores ranging from 0 to 40
+
+Hours_sleep: number of sleeping hours on an average night scaled from 1 to 9.
+
+Rested: encoded answers to whether participants feel well-rested after sleep, where 1 represents 'yes',
+2 represents 'somewhat', and 3 represents 'no'.
+
+sleep: The Charlotte Attitudes Towards Sleep (CATS) Scale. Scores are 
+averaged for a total score between 1 to 7, with higher scores indicating more favourable attitudes 
+about sleep.
+
+Extra cleaning step: Remove 467 rows containing missing values (Python)
+
+```{r cars}
+sleeping_stress <- read.csv("cleaned_stress_data.csv")
+sleeping_stress <- sleeping_stress %>% select(stress_level, Hours_sleep, Rested, sleep_attitudes)
+head(sleeping_stress)
+```
+## Initial Exploratory/Descriptive Analysis
+```{r}
+summary(sleeping_stress$stress_level)
+sd(sleeping_stress$stress_level)
+table(sleeping_stress$stress_level)
+```
+```{r}
+summary(sleeping_stress$Hours_sleep)
+sd(sleeping_stress$Hours_sleep)
+table(sleeping_stress$Hours_sleep)
+```
+```{r}
+summary(sleeping_stress$Rested)
+table(sleeping_stress$Rested)
+```
+```{r}
+summary(sleeping_stress$sleep_attitudes)
+sd(sleeping_stress$sleep_attitudes)
+table(sleeping_stress$sleep_attitudes)
+```
+```{r}
+# Calculate the correlation matrix
+correlation_matrix <- cor(sleeping_stress)
+corrplot(correlation_matrix, method = 'color')
+correlation_matrix
+```
+
+```{r}
+# Convert Rested to a factor variable
+sleeping_stress$Rested_factor <- factor(sleeping_stress$Rested, levels = c(1, 2, 3), labels = c("Yes", "Somewhat", "No"))
+```
+
+```{r}
+hist(data$stress_level, main = "Histogram of Stress Level", xlab = "Stress Level")
+
+# Bar plot for Rested
+ggplot(sleeping_stress, aes(x = Rested_factor, fill = Rested_factor)) +
+  geom_bar() +
+  labs(x = "Feeling Well-Rested", y = "Frequency") +
+  ggtitle("Bar plot of Feeling Well-Rested")
+```
+```{r}
+# Histogram of sleep_attitudes
+hist(sleeping_stress$sleep_attitudes, main = "Distribution of CATS Scale Scores", xlab = "CATS Scale Scores")
+
+# Boxplot of stress levels by CATS Scale scores
+boxplot(stress_level ~ sleep_attitudes, data = sleeping_stress, main = "Stress Levels by CATS Scale Scores", xlab = "CATS Scale Scores", ylab = "Stress Level")
+```
+
+```{r}
+# Scatter plot of stress_level vs. Hours_sleep
+ggplot(sleeping_stress, aes(x = Hours_sleep, y = stress_level)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Hours of Sleep", y = "Stress Level") +
+  ggtitle("Scatter plot of Stress Level vs. Hours of Sleep")
+
+# Scatter plot of stress_level vs. sleep_attitudes
+ggplot(sleeping_stress, aes(x = sleep_attitudes, y = stress_level)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Attitudes of Sleep", y = "Stress Level") +
+  ggtitle("Scatter plot of Stress Level vs. Sleep Attitudes")
+
+# Visualize the relationship between Rested and stress level
+ggplot(sleeping_stress, aes(x = Rested_factor, y = stress_level)) +
+  geom_boxplot() +
+  labs(x = "Rested", y = "Stress Level") +
+  ggtitle("Relationship Between Rested and Stress Level")
+
+```
+
+## Correlation Analysis
+
+```{r}
+# correlation coefficient between stress_level and Hours_sleep
+cor.test(sleeping_stress$stress_level, sleeping_stress$Hours_sleep)
+cor.test(sleeping_stress$stress_level, sleeping_stress$Hours_sleep, method = "spearman")
+```
+```{r}
+# correlation coefficient between stress_level and sleep_attitudes
+cor.test(sleeping_stress$stress_level, sleeping_stress$sleep_attitudes)
+cor.test(sleeping_stress$stress_level, sleeping_stress$sleep_attitudes, method = "spearman")
+```
+## Analysis of Variance (ANOVA)
+
+```{r}
+anova_result <- aov(stress_level ~ Rested_factor, data = sleeping_stress)
+print(summary(anova_result))
+```
+The categorical variable "Rested" has a highly significant effect on stress levels, as indicated by the very small p-value (2.2e-08), which is much less than the conventional significance level of 0.05.
+
+## post hoc tests
+
+```{r}
+# Tukey HSD
+tukey_test <- TukeyHSD(anova_result)
+print(tukey_test)
+
+# Perform pairwise t-tests
+pairwise_t_tests <- pairwise.t.test(sleeping_stress$stress_level, sleeping_stress$Rested, p.adjust.method = "bonferroni")
+print(pairwise_t_tests)
+```
+
+## Linear Regression Model
+
+```{r}
+# Fit linear regression model
+lm_model <- lm(stress_level ~ Hours_sleep, data = sleeping_stress)
+
+# Summary of the regression model
+summary(lm_model)
+
+# Check assumptions
+# 1. Linearity: Assess using a scatterplot of observed vs. predicted values
+plot(lm_model$fitted.values, sleeping_stress$stress_level)
+abline(0, 1)
+
+# 2. Normality of residuals: Assess using a histogram or Q-Q plot of residuals
+hist(residuals(lm_model))
+qqnorm(residuals(lm_model))
+qqline(residuals(lm_model))
+
+# 3. Homoscedasticity: Assess using a plot of residuals vs. fitted values
+plot(lm_model$fitted.values, residuals(lm_model))
+
+# Test regression coefficients
+# Test for significance of coefficients
+# Hypothesis test for Hours_sleep coefficient: H0: coefficient = 0
+anova(lm_model)
+```
+
+```{r}
+# Fit linear regression model with robust standard errors
+lm_model_robust <- coeftest(lm_model, vcov = vcovHC(lm_model))
+
+# Summary of the regression model with robust standard errors
+lm_model_robust
+```
+
+```{r}
+library(lmtest)
+
+# Fit polynomial regression model
+poly_model <- lm(stress_level ~ Hours_sleep + I(Hours_sleep^2), data = sleeping_stress)
+
+# Summary of the polynomial regression model
+summary(poly_model)
+
+# Test for significance of coefficients
+summary(poly_model)$coefficients
+
+# Wald test for significance of coefficients
+anova(lm_model, poly_model)
+```
+The significance of the F-statistic suggests that including the quadratic term (Hours_sleep^2) in Model 2 significantly improves the model fit compared to Model 1, which only includes the linear term. Therefore, you can conclude that the polynomial regression model with the quadratic term provides a better fit to the data than the simple linear regression model.
+
+```{r}
+# Fit cubic regression model
+cubic_model <- lm(stress_level ~ Hours_sleep + I(Hours_sleep^2) + I(Hours_sleep^3), data = sleeping_stress)
+
+# Summary of the cubic regression model
+summary(cubic_model)
+
+# Perform ANOVA to compare the cubic model with the quadratic model
+anova_result <- anova(poly_model, cubic_model)
+
+# Print ANOVA table
+print(anova_result)
+```
+Based on the non-significant p-value, we fail to reject the null hypothesis, suggesting that adding the cubic term (Hours_sleep^3) to the model does not significantly improve the fit compared to the quadratic model. Therefore, in this case, the cubic model does not provide a significantly better fit to the data compared to the quadratic model.
+
+### Conclusion
+
+the polynomial regression model with the quadratic term provides a best fit to the data than the simple linear regression model.
+
+```{r}
+# Generate predicted values from the model
+predicted_values <- predict(poly_model, newdata = data.frame(Hours_sleep = seq(min(sleeping_stress$Hours_sleep), max(sleeping_stress$Hours_sleep), length.out = 100)))
+
+# Scatterplot of stress level vs. hours of sleep
+ggplot(sleeping_stress, aes(x = Hours_sleep, y = stress_level)) +
+  geom_point() +
+  geom_line(data = data.frame(Hours_sleep = seq(min(sleeping_stress$Hours_sleep), max(sleeping_stress$Hours_sleep), length.out = 100), stress_level = predicted_values), aes(x = Hours_sleep, y = stress_level), color = "red") +
+  labs(x = "Hours of Sleep", y = "Stress Level") +
+  ggtitle("Scatterplot of Stress Level vs. Hours of Sleep with Polynomial Regression Model")
+```
+
+## MLR (include all four variables)
+
+```{r}
+# Fit polynomial regression model with additional variables
+poly_model <- lm(stress_level ~ Hours_sleep + I(Hours_sleep^2), data = data)
+multy_model <- lm(stress_level ~ Hours_sleep + I(Hours_sleep^2) + sleep_attitudes, data = data)
+summary(multy_model)
+anova_result <- anova(poly_model, multy_model)
+print(anova_result)
+```
+
+```{r}
+# Fit polynomial regression model with additional variables
+multy_model_3 <- lm(stress_level ~ Hours_sleep + I(Hours_sleep^2) + sleep_attitudes + Rested, data = data)
+summary(multy_model_3)
+anova_result <- anova(poly_model, multy_model_3)
+print(anova_result)
+```
+
+```{r}
+interaction_model <- lm(stress_level ~ Hours_sleep * sleep_attitudes * Rested, data = sleeping_stress)
+summary(interaction_model)
+anova_result <- anova(multy_model_3, interaction_model)
+print(anova_result)
+```
